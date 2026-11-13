@@ -1,0 +1,29 @@
+# ~/.my-jarvis/jarvis.yaml — 主配置模板
+server:
+  host: 127.0.0.1
+  port: 8787
+
+models:
+  strong: { provider: openai, model: "gpt-4.1" }
+  light:  { provider: openai, model: "gpt-4.1-mini" }
+
+confirm:
+  default_timeout_min: 10
+  destructive_timeout_min: 30
+  broadcast: false          # 确认请求是否广播全部入口
+
+wecom:
+  enabled: false
+  corp_id_ref: "my-jarvis/wecom/corp_id"        # keyring 引用
+  secret_ref: "my-jarvis/wecom/secret"
+  token_ref: "my-jarvis/wecom/callback_token"
+  aes_key_ref: "my-jarvis/wecom/aes_key"
+  agent_id: ""
+  allowed_userids: []        # 绑定用户，其他用户消息忽略
+
+session:
+  idle_timeout_min: 30
+  retention_days: 30
+
+log:
+  dir: "~/.my-jarvis/logs"

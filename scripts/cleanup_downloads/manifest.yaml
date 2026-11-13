@@ -1,0 +1,23 @@
+id: cleanup_downloads
+version: 1
+description: "整理下载目录：按类型归类文件，可指定保留天数"
+trigger_examples:
+  - "整理一下下载文件夹"
+  - "下载目录太乱了，清清"
+params:
+  keep_days:
+    type: integer
+    default: 7
+    description: "最近 N 天内的文件不处理"
+  dry_run:
+    type: boolean
+    default: true
+    description: "演练模式，不实际移动/删除"
+permissions:
+  category: write
+  paths: ["~/Downloads/**"]
+  commands: []
+timeout: 300
+entry: run.py
+status: active
+created_from: "builtin"

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>my jarvis — 私人 AI 助手</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04070d; --bg2:#070d18; --panel:#0a1220cc;
+  --cyan:#00d4ff; --cyan-dim:#0a7a99; --amber:#ffb300; --red:#ff4d5e;
+  --text:#c9d8ea; --text-dim:#5f7492; --line:#122741;
+  --display:'Chakra Petch','Noto Sans SC',sans-serif;
+  --body:'Noto Sans SC',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--body);overflow-x:hidden;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, #0a2338 0%, transparent 60%),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size:100% 100%,56px 56px,56px 56px;}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:99;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,#00000026 2px 4px);opacity:.35}
+::selection{background:var(--cyan);color:#000}
+
+.wrap{max-width:1060px;margin:0 auto;padding:0 28px}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:var(--cyan-dim)}
+.sec{padding:88px 0;border-bottom:1px solid var(--line)}
+h2{font-family:var(--display);font-size:clamp(26px,4vw,40px);font-weight:700;color:#eaf4ff;
+  letter-spacing:.04em;margin:10px 0 8px}
+h2 em{font-style:normal;color:var(--cyan)}
+.lead{color:var(--text-dim);max-width:640px;line-height:1.9;font-size:15px}
+.kicker{display:flex;align-items:center;gap:14px}
+.kicker::before{content:'';width:34px;height:1px;background:var(--cyan)}
+
+/* ── hero ── */
+header{min-height:100vh;display:flex;align-items:center;position:relative}
+.reactor{position:absolute;right:-140px;top:50%;transform:translateY(-50%);width:560px;height:560px;opacity:.9;pointer-events:none}
+.ring{position:absolute;inset:0;border:1px solid var(--cyan-dim);border-radius:50%;
+  animation:spin 24s linear infinite}
+.ring::before{content:'';position:absolute;top:-4px;left:50%;width:7px;height:7px;background:var(--cyan);border-radius:50%;box-shadow:0 0 12px var(--cyan)}
+.r2{inset:52px;animation-duration:16s;animation-direction:reverse;border-style:dashed}
+.r3{inset:110px;animation-duration:40s;border-color:#1a3a5c}
+.r4{inset:170px;animation-duration:9s;border-color:#0d2440}
+.core{position:absolute;inset:238px;border-radius:50%;background:radial-gradient(circle,#eaffff 0%,var(--cyan) 40%,#083d5200 75%);
+  box-shadow:0 0 80px #00d4ff88,0 0 200px #00d4ff33;animation:pulse 3.2s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{transform:scale(1.07);filter:brightness(1.25)}}
+.h-status{font-family:var(--mono);font-size:12px;color:var(--cyan);border:1px solid var(--cyan-dim);
+  display:inline-flex;gap:10px;align-items:center;padding:7px 16px;border-radius:2px;background:#06202e88}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 1.6s infinite}
+h1{font-family:var(--display);font-weight:300;font-size:clamp(52px,9vw,104px);line-height:1.02;color:#f2f9ff;
+  letter-spacing:.02em;margin:26px 0 4px}
+h1 b{font-weight:700;color:var(--cyan);text-shadow:0 0 40px #00d4ff55}
+.h-sub{font-family:var(--display);font-weight:300;font-size:clamp(15px,2vw,20px);letter-spacing:.5em;color:var(--text-dim);text-transform:uppercase;margin-bottom:34px}
+.h-desc{max-width:480px;line-height:2;color:var(--text);font-size:15.5px}
+.h-desc strong{color:var(--amber);font-weight:500}
+.h-cta{display:flex;gap:16px;margin-top:44px;flex-wrap:wrap}
+.btn{font-family:var(--display);font-size:14px;letter-spacing:.18em;text-transform:uppercase;padding:15px 34px;
+  border:1px solid var(--cyan);color:var(--cyan);text-decoration:none;position:relative;overflow:hidden;transition:.3s;clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px)}
+.btn:hover{background:var(--cyan);color:#001018;box-shadow:0 0 34px #00d4ff66}
+.btn.ghost{border-color:#2a4666;color:var(--text-dim)}
+.btn.ghost:hover{border-color:var(--amber);color:var(--amber);background:transparent;box-shadow:none}
+
+/* ── capability cards ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:44px}
+.card{background:var(--bg2);padding:32px 26px;position:relative;transition:.3s}
+.card:hover{background:#0c1828}
+.card:hover .num{color:var(--amber);text-shadow:0 0 16px var(--amber)}
+.num{font-family:var(--mono);font-size:11px;color:var(--cyan-dim);letter-spacing:.2em;transition:.3s}
+.card h3{font-family:var(--display);font-size:19px;color:#eaf4ff;margin:14px 0 10px;letter-spacing:.06em}
+.card p{font-size:13px;line-height:1.9;color:var(--text-dim)}
+.card .icon{font-size:24px;margin-bottom:2px;filter:saturate(.2) brightness(1.4)}
+
+/* ── flywheel ── */
+.fly{display:flex;align-items:center;gap:0;margin-top:52px;flex-wrap:wrap;justify-content:center}
+.step{border:1px solid var(--line);background:var(--panel);padding:20px 22px;min-width:172px;position:relative;backdrop-filter:blur(4px)}
+.step b{font-family:var(--display);display:block;font-size:15px;color:var(--cyan);margin-bottom:6px;letter-spacing:.08em}
+.step span{font-size:12.5px;color:var(--text-dim);line-height:1.7;display:block}
+.arrow{color:var(--amber);font-family:var(--mono);padding:0 14px;font-size:18px}
+.fly-note{font-family:var(--mono);font-size:12px;color:var(--amber);text-align:center;margin-top:26px;letter-spacing:.12em}
+
+/* ── entrances ── */
+.ent-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;margin-top:44px}
+.ent{border:1px solid var(--line);background:var(--panel);padding:30px;position:relative;overflow:hidden;backdrop-filter:blur(4px)}
+.ent::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cyan),transparent)}
+.ent h3{font-family:var(--display);font-size:20px;color:#eaf4ff;letter-spacing:.06em;margin-bottom:4px}
+.ent .e-en{font-family:var(--mono);font-size:10.5px;color:var(--cyan-dim);letter-spacing:.24em;text-transform:uppercase}
+.ent p{font-size:13px;color:var(--text-dim);line-height:1.9;margin-top:14px}
+
+/* ── architecture ── */
+.arch{font-family:var(--mono);font-size:12.5px;line-height:2.1;background:#03060b;border:1px solid var(--line);
+  padding:36px 30px;margin-top:44px;overflow-x:auto;white-space:pre;color:var(--text-dim)}
+.arch .hl{color:var(--cyan)} .arch .am{color:var(--amber)} .arch .cm{color:#3d5878}
+
+/* ── security ── */
+.perm{margin-top:44px;border:1px solid var(--line)}
+.perm-row{display:grid;grid-template-columns:150px 1fr 130px;gap:0;border-bottom:1px solid var(--line);background:var(--bg2)}
+.perm-row:last-child{border-bottom:none}
+.perm-row>div{padding:18px 22px;font-size:13.5px}
+.perm-row.head{background:#0c1a2c;font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim)}
+.p-name{font-family:var(--display);color:#eaf4ff;letter-spacing:.05em}
+.badge{font-family:var(--mono);font-size:11px;letter-spacing:.14em;align-self:center;text-align:center;padding:5px 0;border:1px solid;justify-self:start;padding:5px 14px}
+.b-allow{color:var(--cyan);border-color:var(--cyan-dim);background:#06202e55}
+.b-confirm{color:var(--amber);border-color:#8a6a1f;background:#221a0555}
+.b-force{color:var(--red);border-color:#7a2530;background:#2b0b1155}
+.perm-row p{color:var(--text-dim);line-height:1.8}
+
+/* ── stack ── */
+.stack{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px}
+.chip{font-family:var(--mono);font-size:12px;color:var(--text);border:1px solid var(--line);padding:10px 18px;background:var(--bg2);letter-spacing:.04em}
+.chip b{color:var(--cyan);font-weight:400;margin-right:8px}
+
+/* ── footer ── */
+footer{padding:64px 0;text-align:center}
+footer .f-jarvis{font-family:var(--display);font-size:26px;color:#eaf4ff;letter-spacing:.32em;font-weight:300}
+footer p{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:14px;letter-spacing:.18em}
+
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .8s ease,transform .8s ease}
+.reveal.on{opacity:1;transform:none}
+@media(max-width:900px){.reactor{right:-260px;opacity:.4}
+.perm-row{grid-template-columns:110px 1fr}.perm-row>div:last-child{grid-column:2}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="reactor">
+    <div class="ring"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
+    <div class="core"></div>
+  </div>
+  <div class="wrap">
+    <div class="h-status"><span class="dot"></span>SYSTEM ONLINE · GATEWAY LISTENING 127.0.0.1:8787</div>
+    <h1>my <b>jarvis</b></h1>
+    <div class="h-sub">Personal AI Assistant · macOS / Windows</div>
+    <p class="h-desc">一个常驻你的电脑（macOS / Windows 双平台）、真正能动手的私人 AI 助手。用<strong>自然语言</strong>驱动网页操作、软件控制、命令执行；用得顺手的操作<strong>沉淀为脚本</strong>，一次审核，终身免确认。企业微信、网页、终端，随时随地唤它。</p>
+    <div class="h-cta">
+      <a class="btn" href="#capabilities">能力矩阵</a>
+      <a class="btn ghost" href="#architecture">架构总览</a>
+    </div>
+  </div>
+</header>
+
+<section class="sec" id="capabilities">
+  <div class="wrap">
+    <div class="kicker reveal"><span class="tag">01 / Capabilities</span></div>
+    <h2 class="reveal">它不只是<em>回答</em>，<br>它替你<em>动手</em></h2>
+    <p class="lead reveal">四大执行域 + 一条安全飞轮。每一次成功操作都会被记住，重复的事再也不用说第二遍。</p>
+    <div class="grid">
+      <div class="card reveal"><div class="icon">🌐</div><div class="num">DOMAIN / WEB</div><h3>网页操作</h3><p>agent-browser 交互式探索未知页面，成功路径由 playwright-cli 固化为可重放脚本。登录态常驻，填表、抓取、签到一键完成。</p></div>
+      <div class="card reveal"><div class="icon">🖥</div><div class="num">DOMAIN / APP</div><h3>软件操作</h3><p>平台自适应控制桌面应用：macOS 走 AppleScript→Accessibility→坐标视觉三层递进，Windows 走 UI Automation，从 Finder 整理到 Office 自动化。</p></div>
+      <div class="card reveal"><div class="icon">⌘</div><div class="num">DOMAIN / SHELL</div><h3>命令执行</h3><p>自然语言直接变成 shell 命令，分级权限管控执行。git、brew、系统维护，说得清楚就做得干净。</p></div>
+      <div class="card reveal"><div class="icon">⚡</div><div class="num">DOMAIN / SCRIPT</div><h3>固化脚本</h3><p>常用操作一键转正：manifest 声明参数与权限，之后免确认直接执行，支持定时调度与心跳推送。</p></div>
+    </div>
+
+    <div class="fly reveal">
+      <div class="step"><b>1 · 执行</b><span>你说需求，子 Agent 拆解执行</span></div><div class="arrow">→</div>
+      <div class="step"><b>2 · 沉淀</b><span>成功任务自动生成候选模板</span></div><div class="arrow">→</div>
+      <div class="step"><b>3 · 审核</b><span>Web 管理台一键转正</span></div><div class="arrow">→</div>
+      <div class="step"><b>4 · 免确认</b><span>此后命中即执行，越用越快</span></div>
+    </div>
+    <div class="fly-note reveal">// FLYWHEEL: 每一次审核，都在为未来的自己减负</div>
+  </div>
+</section>
+
+<section class="sec" id="entrances">
+  <div class="wrap">
+    <div class="kicker reveal"><span class="tag">02 / Entrances</span></div>
+    <h2 class="reveal">三个入口，<em>一个 jarvis</em></h2>
+    <p class="lead reveal">统一消息总线收敛所有交互。会话跨入口接续，确认随时随地点批，深夜的定时任务早上推送到你手机。</p>
+    <div class="ent-grid">
+      <div class="ent reveal"><h3>企业微信</h3><div class="e-en">WeCom App · Remote</div><p>自建应用双向对话，人在哪儿助手就在哪儿。卡片按钮确认高危操作，支持二次校验防伪造。走出家门也在线。</p></div>
+      <div class="ent reveal"><h3>网页控制台</h3><div class="e-en">Web Console · Local</div><p>不止是聊天窗：候选模板审核转正、确认队列、全量审计日志，安全模型一目了然。</p></div>
+      <div class="ent reveal"><h3>终端</h3><div class="e-en">CLI · Local</div><p>开发者的本能入口。直连本地 WebSocket，交互式 y/n 确认，脚本化调用友好。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="architecture">
+  <div class="wrap">
+    <div class="kicker reveal"><span class="tag">03 / Architecture</span></div>
+    <h2 class="reveal">Gateway · 统一<em>指挥中枢</em></h2>
+    <p class="lead reveal">参考 OpenClaw 架构、以 Python + OpenAI Agents SDK 重新实现。Gateway 是唯一消息入口与权限执行点。</p>
+    <div class="arch reveal"><span class="cm">┌─────────────── Channels ───────────────┐</span>
+   企微自建应用      Web 控制台       CLI
+<span class="cm">└──────────────────┬─────────────────────┘</span>        <span class="cm">│ 统一消息协议</span>        <span class="cm">▼</span>
+<span class="hl">┌─────────────── Gateway (FastAPI, 常驻) ─┐</span>
+<span class="hl">│</span>  消息路由 · 会话管理 · <span class="am">权限引擎</span>       <span class="hl">│</span>
+<span class="hl">│</span>  <span class="am">确认队列(异步)</span> · 调度器 · 审计日志  <span class="hl">│</span>
+<span class="hl">└──────────────────┬─────────────────────┘</span>        <span class="cm">▼</span>
+<span class="hl">┌─────────────── Agent 层 ────────────────┐</span>
+<span class="hl">│</span>  主 Agent — 意图理解 → handoff 分发    <span class="hl">│</span>
+<span class="hl">│</span>  子 Agent — 命令 / 网页 / 软件 / 文件  <span class="hl">│</span>
+<span class="hl">└──────────────────┬─────────────────────┘</span>        <span class="cm">▼</span>
+<span class="hl">┌─────────────── 执行底座 ────────────────┐</span>
+<span class="hl">│</span>  脚本生成 → 子进程执行（统一抽象）      <span class="hl">│</span>
+<span class="hl">│</span>  playwright-cli · AppleScript · shell <span class="hl">│</span>
+<span class="hl">└────────────────────────────────────────┘</span></div>
+    <div class="stack reveal">
+      <span class="chip"><b>核心</b>Python 3.12+ · OpenAI Agents SDK</span>
+      <span class="chip"><b>服务</b>FastAPI · WebSocket · APScheduler</span>
+      <span class="chip"><b>存储</b>SQLite · Keychain</span>
+      <span class="chip"><b>浏览器</b>Playwright · agent-browser</span>
+      <span class="chip"><b>系统</b>AppleScript · Accessibility · Win UIA</span>
+      <span class="chip"><b>模型</b>分层多模型路由</span>
+      <span class="chip"><b>部署</b>launchd / Win 服务 · frp 隧道</span>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="security">
+  <div class="wrap">
+    <div class="kicker reveal"><span class="tag">04 / Security</span></div>
+    <h2 class="reveal">放权的<em>艺术</em>，收权的<em>底线</em></h2>
+    <p class="lead reveal">AI 替你敲回车，前提是它分得清什么可以自己来、什么必须问你。分级权限 + 异步确认队列 + 不可绕过的破坏性下限。</p>
+    <div class="perm reveal">
+      <div class="perm-row head"><div>操作类别</div><div>判定逻辑</div><div>策略</div></div>
+      <div class="perm-row"><div class="p-name">固化脚本</div><p>已注册、已审核，manifest 声明参数与权限范围</p><div class="badge b-allow">ALLOW</div></div>
+      <div class="perm-row"><div class="p-name">只读操作</div><p>查文件、读网页、查状态——不改变任何东西</p><div class="badge b-allow">ALLOW</div></div>
+      <div class="perm-row"><div class="p-name">写操作</div><p>移动文件、写配置、启动软件——进确认队列，异步等你批</p><div class="badge b-confirm">CONFIRM</div></div>
+      <div class="perm-row"><div class="p-name">破坏性命令</div><p>rm · sudo · kill——永不降级，任何入口都强制确认，企微侧二次校验</p><div class="badge b-force">ALWAYS</div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-jarvis reveal">J.A.R.V.I.S</div>
+    <p class="reveal">MY JARVIS · JUST A RATHER VERY INTELLIGENT SYSTEM · 127.0.0.1:8787</p>
+  </div>
+</footer>
+
+<script>
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('on');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(i%4)*90+'ms';io.observe(el)});
+</script>
+</body>
+</html>

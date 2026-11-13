@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my jarvis · 控制台</title>
+<style>
+:root{--bg:#04070d;--panel:#0a1220;--line:#122741;--cyan:#00d4ff;--amber:#ffb300;--red:#ff4d5e;--text:#c9d8ea;--dim:#5f7492}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:14px/1.8 "Noto Sans SC",sans-serif;display:grid;grid-template-columns:1fr 340px;height:100vh}
+#chat{display:flex;flex-direction:column;border-right:1px solid var(--line)}
+#log{flex:1;overflow-y:auto;padding:24px}
+.msg{max-width:72%;margin:8px 0;padding:10px 16px;border:1px solid var(--line);background:var(--panel);border-radius:6px;white-space:pre-wrap}
+.msg.user{margin-left:auto;border-color:#1e4a66;background:#0a2030}
+.msg.confirm{border-color:var(--amber)}
+.msg.confirm button{margin:8px 10px 0 0;padding:6px 20px;background:none;border:1px solid var(--cyan);color:var(--cyan);cursor:pointer;font:inherit}
+.msg.confirm button.no{border-color:var(--red);color:var(--red)}
+form{display:flex;border-top:1px solid var(--line)}
+input{flex:1;background:none;border:0;color:var(--text);padding:16px;font:inherit;outline:none}
+button.send{background:var(--cyan);border:0;color:#001018;padding:0 28px;font:600 13px sans-serif;letter-spacing:.2em}
+#side{overflow-y:auto;padding:20px}
+h3{color:var(--cyan);font:600 13px sans-serif;letter-spacing:.24em;margin:18px 0 8px}
+.item{border:1px solid var(--line);background:var(--panel);padding:10px 14px;margin:6px 0;font-size:12.5px;border-radius:4px}
+.item b{color:#eaf4ff}.risk{font-size:11px;color:var(--amber)}
+.token{width:100%;background:#03060b;border:1px solid var(--line);color:var(--dim);padding:8px;font:11px monospace}
+</style></head><body>
+<div id="chat"><div id="log"></div>
+<form><input id="inp" placeholder="对 jarvis 说点什么…" autocomplete="off"><button class="send">SEND</button></form></div>
+<div id="side">
+<input class="token" id="token" placeholder="粘贴 token（~/.my-jarvis/token）">
+<h3>待确认</h3><div id="confirms">(无)</div>
+<h3>固化脚本</h3><div id="scripts">(加载中)</div>
+<h3>审计（最近）</h3><div id="audit">(加载中)</div>
+</div>
+<script>
+var log=document.getElementById("log");
+function H(){return {"X-Jarvis-Token":document.getElementById("token").value}}
+function add(cls,text){var d=document.createElement("div");d.className="msg "+cls;d.textContent=text;log.appendChild(d);log.scrollTop=1e9}
+var sid=null;
+var ws=new WebSocket("ws://"+location.host+"/api/ws");
+ws.onmessage=function(e){var o=JSON.parse(e.data);sid=o.session_id;
+  if(o.type==="confirm_request"){var c=o.confirm;
+    add("confirm","[需要确认 "+c.risk_level+"] "+c.summary);
+    var d=log.lastChild,y=document.createElement("button"),n=document.createElement("button");
+    y.textContent="批准";n.textContent="拒绝";n.className="no";
+    y.onclick=n.onclick=function(ev){fetch("/api/confirm",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},H()),body:JSON.stringify({action_id:c.action_id,decision:ev.target===y?"approve":"reject"})});d.remove()};
+    d.appendChild(y);d.appendChild(n)}
+  else add("jarvis",o.text||JSON.stringify(o))};
+document.querySelector("form").onsubmit=function(e){e.preventDefault();
+  var t=document.getElementById("inp").value;if(!t)return;
+  add("user",t);document.getElementById("inp").value="";
+  fetch("/api/chat",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},H()),body:JSON.stringify({text:t,entrance:"web",session_id:sid})})};
+function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+async function refresh(){try{
+  var cf=await(await fetch("/api/confirm",{headers:H()})).json();
+  document.getElementById("confirms").innerHTML=cf.length?cf.map(function(a){return "<div class=item><b>"+esc(a.tool_name)+"</b> <span class=risk>["+a.risk_level+"]</span><br>"+esc(a.summary)+"</div>"}).join(""):"(无)";
+  var sc=await(await fetch("/api/scripts",{headers:H()})).json();
+  document.getElementById("scripts").innerHTML=sc.map(function(s){return "<div class=item><b>"+esc(s.id)+"</b> ["+s.status+"]<br>"+esc(s.description)+"</div>"}).join("");
+  var au=await(await fetch("/api/audit?size=8",{headers:H()})).json();
+  document.getElementById("audit").innerHTML=au.items.map(function(a){return "<div class=item>"+esc(a.ts.slice(5,16))+" <b>"+esc(a.tool_name)+"</b> → "+esc(a.decision)+"</div>"}).join("")
+  }catch(e){document.getElementById("confirms").textContent="token 未配置或无效"}}
+refresh();setInterval(refresh,8000);
+</script></body></html>

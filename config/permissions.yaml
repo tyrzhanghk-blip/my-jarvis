@@ -1,0 +1,30 @@
+# ~/.my-jarvis/permissions.yaml — 权限配置模板
+version: 1
+default_policy: confirm
+
+categories:
+  script:      { policy: allow }
+  readonly:    { policy: allow }
+  write:       { policy: confirm }
+  destructive:
+    policy: confirm
+    always: true
+  network:     { policy: confirm }
+
+rules:
+  - match: { type: command, pattern: "git status|git log|git diff" }
+    policy: allow
+  - match: { type: path, pattern: "~/Downloads/**" }
+    policy: allow
+    action: move_organize
+  - match: { type: script, id: "cleanup_downloads" }
+    policy: allow
+    # expires: "2026-12-31"
+
+contexts:
+  entrances:
+    cli:   { trust: full }
+    web:   { trust: full }
+    wecom: { trust: partial }
+  schedules:
+    - { range: "23:00-07:00", override: { default_policy: confirm } }
