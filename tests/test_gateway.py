@@ -134,6 +134,53 @@ class TestPromoteLoop:
         assert b.startswith("list-newest-files")
 
 
+
+
+class TestModelRouting:
+    def test_model_for_custom_base_url(self, monkeypatch, tmp_path):
+        """自定义 base_url → 返回绑定 client 的 Model 实例。"""
+        import my_jarvis.gateway.paths as paths
+        import my_jarvis.agent.core as core
+        monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path)
+        (tmp_path / "jarvis.yaml").write_text(
+            "models:\n  base_url: https://relay.example.com/v1\n"
+            "  strong: { model: hy4 }\n  light: { model: hy3 }\n")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        core._CLIENTS.clear()
+        from agents import OpenAIChatCompletionsModel
+        m = core._model_for("strong")
+        assert isinstance(m, OpenAIChatCompletionsModel)
+        m2 = core._model_for("light")
+        assert isinstance(m2, OpenAIChatCompletionsModel)
+        assert m is not m2
+
+    def test_model_for_per_alias_override(self, monkeypatch, tmp_path):
+        import my_jarvis.gateway.paths as paths
+        import my_jarvis.agent.core as core
+        monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path)
+        (tmp_path / "jarvis.yaml").write_text(
+            "models:\n  strong: { model: gpt-4.1 }\n"
+            "  light: { model: hy3, base_url: https://other.example.com/v1 }\n")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        core._CLIENTS.clear()
+        from agents import OpenAIChatCompletionsModel
+        assert core._model_for("strong") == "gpt-4.1"
+        assert isinstance(core._model_for("light"), OpenAIChatCompletionsModel)
+
+    def test_client_shared_per_base_url(self, monkeypatch, tmp_path):
+        import my_jarvis.gateway.paths as paths
+        import my_jarvis.agent.core as core
+        monkeypatch.setattr(paths, "CONFIG_DIR", tmp_path)
+        (tmp_path / "jarvis.yaml").write_text(
+            "models:\n  base_url: https://relay.example.com/v1\n"
+            "  strong: { model: a }\n  light: { model: b }\n")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        core._CLIENTS.clear()
+        core._model_for("strong"); core._model_for("light")
+        assert len(core._CLIENTS) == 1
+
+
 class TestExecBase:
     async def test_run_spec_shell(self):
         from my_jarvis.tools.base import ExecSpec, run_spec

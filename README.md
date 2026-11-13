@@ -22,7 +22,16 @@ uv pip install -p .venv/bin/python -e ".[dev]"
 ```
 
 - Web 控制台：http://127.0.0.1:8787/web （token 在 `~/.my-jarvis/token`）
-- OpenAI API Key：`export OPENAI_API_KEY=...`（agent 对话必需）
+- API Key：`export OPENAI_API_KEY=...`（agent 对话必需；key 只从环境变量读取，不落配置文件）
+- 自定义模型网关（中转/代理/私有部署）：在 `~/.my-jarvis/config/jarvis.yaml` 配置
+  ```yaml
+  models:
+    base_url: "https://your-relay.example.com/v1"   # 留空则用官方端点或 OPENAI_BASE_URL 环境变量
+    api_key_env: OPENAI_API_KEY                     # 从哪个环境变量读 key
+    strong: { model: "hy4" }                        # 跑 agent 的强模型
+    light:  { model: "hy3" }                        # 参数填充/摘要的轻量模型
+    # 每个别名可单独覆盖 base_url，实现多网关路由
+  ```
 
 ## 企微接入（可选）
 

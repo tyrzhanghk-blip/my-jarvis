@@ -31,8 +31,18 @@ BASE = f"http://127.0.0.1:{PORT}"
 def gateway(tmp_path_factory):
     """独立 JARVIS_HOME 启动真实 Gateway 子进程。"""
     env = os.environ.copy()
-    env["JARVIS_HOME"] = str(tmp_path_factory.mktemp("jarvis-e2e"))
+    home = tmp_path_factory.mktemp("jarvis-e2e")
+    env["JARVIS_HOME"] = str(home)
     env["JARVIS_PORT"] = str(PORT)
+    # 预写 base_url 到新配置（走"配置文件"而非环境变量路径，验证自定义网关支持）
+    base_url = env.get("OPENAI_BASE_URL", "")
+    if base_url:
+        cfg_dir = home / "config"
+        cfg_dir.mkdir(parents=True)
+        template = (ROOT / "config" / "jarvis.yaml").read_text()
+        (cfg_dir / "jarvis.yaml").write_text(
+            template.replace('base_url: ""', f'base_url: "{base_url}"', 1))
+        env.pop("OPENAI_BASE_URL", None)  # 强制走配置路径
     proc = subprocess.Popen(
         [str(ROOT / ".venv/bin/python"), "-m", "my_jarvis.gateway.app"],
         cwd=str(ROOT), env=env,
@@ -47,13 +57,19 @@ def gateway(tmp_path_factory):
         proc.kill()
         raise RuntimeError("gateway failed to start")
     token = (Path(env["JARVIS_HOME"]) / "token").read_text().strip()
+    os.environ["GW_HOME"] = env["JARVIS_HOME"]  # 供测试进程内自动拒绝用
     yield {"token": token, "home": env["JARVIS_HOME"]}
+    os.environ.pop("GW_HOME", None)
     proc.kill()
 
 
 async def _ws_roundtrip(text: str, auto_approve_token: str | None = None,
-                        timeout_s: int = 240) -> dict:
-    """WS 发消息收完整对话；可选自动批准确认。"""
+                        timeout_s: int = 300) -> dict:
+    """WS 发消息收完整对话。
+
+    auto_approve_token 提供 → 自动批准确认（场景3）；
+    否则自动拒绝确认 → agent 收到拒绝后继续给出回复，避免挂起超时。
+    """
     import websockets
     async with websockets.connect(f"ws://127.0.0.1:{PORT}/api/ws") as ws:
         await ws.send(json.dumps({"entrance": "cli", "text": text}))
@@ -64,15 +80,27 @@ async def _ws_roundtrip(text: str, auto_approve_token: str | None = None,
                 if o.get("type") == "confirm_request":
                     c = o["confirm"]
                     confirm_seen = c
-                    if auto_approve_token:
+                    decision = "approve" if auto_approve_token else "reject"
+                    token = auto_approve_token or _env_token()
+                    if token:
                         async with httpx.AsyncClient() as client:
                             await client.post(
                                 f"{BASE}/api/confirm",
-                                headers={"X-Jarvis-Token": auto_approve_token},
-                                json={"action_id": c["action_id"], "decision": "approve"})
+                                headers={"X-Jarvis-Token": token},
+                                json={"action_id": c["action_id"], "decision": decision})
                 elif o.get("type") == "reply":
                     return {"reply": o["text"], "confirm": confirm_seen}
     return {"reply": "", "confirm": confirm_seen}
+
+
+def _env_token() -> str | None:
+    """场景1/2 自动拒绝也需要 token：从 GW_HOME 环境变量（fixture 注入）取。"""
+    home = os.environ.get("GW_HOME")
+    if home:
+        p = Path(home) / "token"
+        if p.exists():
+            return p.read_text().strip()
+    return None
 
 
 def _audit(gateway) -> list[dict]:
@@ -91,7 +119,8 @@ class TestE2ESmoke:
                    for a in decisions), "readonly 命令应 allow"
 
     def test_02_script_hit_dryrun(self, gateway):
-        out = asyncio.run(_ws_roundtrip("帮我整理一下下载文件夹"))
+        out = asyncio.run(_ws_roundtrip(
+            "帮我整理下载文件夹（若已注册的固化脚本能覆盖，请直接用它执行）"))
         assert out["reply"], "应收到回复"
         assert "任务执行失败" not in out["reply"]
         audits = _audit(gateway)

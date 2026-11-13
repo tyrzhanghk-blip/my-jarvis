@@ -34,25 +34,60 @@ UI_PROMPT = """你是桌面 UI 底座子 agent，负责控制本地软件（macO
 - 操作前建议截图留证；修改性操作会被要求确认，属于预期行为。"""
 
 
-def _resolve_models() -> dict[str, str]:
-    """从 jarvis.yaml 解析模型别名 → 真实模型名（分层多模型路由）。"""
+def _models_cfg() -> dict:
+    """读取 jarvis.yaml 的 models 配置段。"""
     import yaml
     from my_jarvis.gateway.paths import CONFIG_DIR
-    cfg_path = CONFIG_DIR / "jarvis.yaml"
     try:
-        cfg = yaml.safe_load(cfg_path.read_text()) or {}
-        out = {}
-        for alias, m in (cfg.get("models") or {}).items():
-            out[alias] = m.get("model", "gpt-4.1")
-        return out
+        cfg = yaml.safe_load((CONFIG_DIR / "jarvis.yaml").read_text()) or {}
+        return cfg.get("models") or {}
     except Exception:
         return {}
 
 
+_CLIENTS: dict[str, "object"] = {}
+
+
+def _client_for(base_url: str | None, api_key: str | None):
+    """按 base_url 复用 AsyncOpenAI client（同网关共享连接池）。"""
+    import openai
+    key = base_url or "__official__"
+    if key not in _CLIENTS:
+        kwargs = {"api_key": api_key} if api_key else {}
+        if base_url:
+            kwargs["base_url"] = base_url
+        _CLIENTS[key] = openai.AsyncOpenAI(**kwargs)
+    return _CLIENTS[key]
+
+
+def _model_for(alias: str):
+    """别名 → Model 实例或模型名。
+
+    优先级（base_url）：模型别名内 base_url > models.base_url > OPENAI_BASE_URL 环境变量。
+    优先级（api_key）：api_key_env 指定的环境变量 > OPENAI_API_KEY。
+    自定义 base_url 时返回 OpenAIChatCompletionsModel（显式绑定 client），
+    否则返回模型名交由 SDK 用默认 client（官方端点/环境变量）。
+    """
+    import os
+
+    cfg = _models_cfg()
+    m = cfg.get(alias) or {}
+    if isinstance(m, str):
+        m = {"model": m}
+    name = m.get("model") or alias
+    base_url = m.get("base_url") or cfg.get("base_url") or os.environ.get("OPENAI_BASE_URL") or None
+    api_key_env = m.get("api_key_env") or cfg.get("api_key_env") or "OPENAI_API_KEY"
+    api_key = os.environ.get(api_key_env) or os.environ.get("OPENAI_API_KEY")
+
+    if not base_url:
+        return name  # SDK 默认 client（官方端点）
+    from agents import OpenAIChatCompletionsModel
+    return OpenAIChatCompletionsModel(model=name, openai_client=_client_for(base_url, api_key))
+
+
 @lru_cache
 def build_agents() -> tuple[Agent, dict[str, Agent]]:
-    models = _resolve_models()
-    strong = models.get("strong", "gpt-4.1")
+    strong = _model_for("strong")
 
     # 注入已注册 active 脚本清单（脚本命中优先的前提）
     from my_jarvis.scripts import load_scripts
@@ -91,5 +126,6 @@ async def run_agent(text: str, script_tools: list | None = None) -> str:
     main, _ = build_agents()
     if script_tools:
         main = main.clone(tools=[*main.tools, *script_tools])
-    result = await Runner.run(main, text)
+    # handoff + 多步工具调用会消耗轮次，默认 10 轮不够
+    result = await Runner.run(main, text, max_turns=25)
     return result.final_output

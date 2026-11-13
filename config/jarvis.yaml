@@ -4,8 +4,14 @@ server:
   port: 8787
 
 models:
-  strong: { provider: openai, model: "hy4" }
-  light:  { provider: openai, model: "hy3" }
+  # 自定义 API 网关（中转/代理/私有部署）。留空则用官方端点或 OPENAI_BASE_URL 环境变量。
+  base_url: ""
+  api_key_env: OPENAI_API_KEY
+  # 分层模型路由：strong 跑 agent，light 做参数填充/摘要；均可单独覆盖 base_url
+  strong: { model: "hy4" }
+  light:  { model: "hy3" }
+  # 单独覆盖示例：
+  # strong: { model: "gpt-4.1", base_url: "https://your-relay.example.com/v1", api_key_env: MY_KEY }
 
 confirm:
   default_timeout_min: 10
