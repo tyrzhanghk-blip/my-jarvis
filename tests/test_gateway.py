@@ -100,6 +100,40 @@ class TestRegistry:
         assert hit is not None and hit.id == "cleanup_downloads"
 
 
+
+
+class TestPromoteLoop:
+    def test_promote_candidate_creates_script(self, tmp_path, monkeypatch):
+        """沉淀闭环：DB 候选 → 脚本目录 → load_scripts 可见且 active。"""
+        import my_jarvis.gateway.paths as paths
+        import my_jarvis.scripts.registry as reg
+        from my_jarvis.gateway.store import Store
+        monkeypatch.setattr(paths, "SCRIPTS_DIR", tmp_path / "scripts")
+        reg.load_scripts.cache_clear() if hasattr(reg.load_scripts, "cache_clear") else None
+
+        s = Store(tmp_path / "t.db")
+        cid = s.add_candidate("run_command", "echo hello-promoted",
+                              "create a test dir named promoted")
+        sd = reg.promote_candidate(s, cid)
+        assert sd.is_active()
+        # 文件落盘
+        d = tmp_path / "scripts" / sd.id
+        assert (d / "manifest.yaml").exists()
+        assert "hello-promoted" in (d / "run.sh").read_text()
+        # load_scripts 能从用户目录加载
+        found = [x for x in reg.load_scripts() if x.id == sd.id]
+        assert found and found[0].is_active()
+        # DB 状态翻转
+        assert s.candidates("active") and not s.candidates("candidate")
+
+    def test_slugify_unique_and_safe(self):
+        from my_jarvis.scripts.registry import _slugify
+        a = _slugify("列出最新文件")
+        b = _slugify("list newest files")
+        assert a != b and a.startswith("script-")
+        assert b.startswith("list-newest-files")
+
+
 class TestExecBase:
     async def test_run_spec_shell(self):
         from my_jarvis.tools.base import ExecSpec, run_spec

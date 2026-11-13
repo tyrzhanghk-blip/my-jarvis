@@ -75,6 +75,53 @@ def match_script(text: str, scripts: list[ScriptDef]) -> ScriptDef | None:
     return best
 
 
+def promote_candidate(store, cid: str) -> ScriptDef:
+    """候选模板转正：DB 记录 → 用户脚本目录（manifest + run.sh）→ active。
+
+    飞轮最后一环：agent 沉淀候选 → 人工审核调用本函数 → 成为可执行固化脚本。
+    """
+    row = store.promote_candidate(cid)
+    if row is None:
+        raise KeyError(f"candidate {cid} not found")
+
+    sid = _slugify(row["description"] or f"candidate-{cid[:8]}")
+    import my_jarvis.gateway.paths as paths
+    target = paths.SCRIPTS_DIR / sid
+    target.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "id": sid, "version": 1,
+        "description": row["description"],
+        "trigger_examples": [row["description"]],
+        "params": {},
+        "permissions": {"category": "write", "paths": [], "commands": []},
+        "timeout": 300,
+        "entry": "run.sh",
+        "status": "active",
+        "created_from": f"candidate:{cid}",
+    }
+    (target / "manifest.yaml").write_text(
+        yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False))
+    (target / "run.sh").write_text(
+        "#!/bin/bash\n# 固化自候选模板 " + cid + "\nset -euo pipefail\n"
+        + row["script_text"].strip() + "\n")
+    (target / "run.sh").chmod(0o755)
+
+    for s in load_scripts():
+        if s.id == sid:
+            return s
+    raise RuntimeError(f"promoted script {sid} not found after write")
+
+
+def _slugify(text: str) -> str:
+    """描述 → 脚本 id（中文转拼音不可靠，取可读 ASCII + 短哈希保底唯一）。"""
+    import hashlib
+    import re
+    ascii_part = re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-").lower()[:32]
+    digest = hashlib.md5(text.encode()).hexdigest()[:6]
+    return f"{ascii_part or 'script'}-{digest}"
+
+
 def build_script_tools(scripts: list[ScriptDef]) -> list:
     """把 active 脚本包装成 function tools（经 run_script 权限路径）。"""
     by_id = {s.id: s for s in scripts if s.is_active()}

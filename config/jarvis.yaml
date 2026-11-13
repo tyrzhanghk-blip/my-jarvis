@@ -4,8 +4,8 @@ server:
   port: 8787
 
 models:
-  strong: { provider: openai, model: "gpt-4.1" }
-  light:  { provider: openai, model: "gpt-4.1-mini" }
+  strong: { provider: openai, model: "hy4" }
+  light:  { provider: openai, model: "hy3" }
 
 confirm:
   default_timeout_min: 10

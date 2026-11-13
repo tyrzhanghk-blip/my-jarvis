@@ -22,6 +22,12 @@ class MessageRouter:
         self.confirm_timeout_min = confirm_timeout_min
         self._script_tools = build_script_tools(load_scripts())
 
+    def reload_scripts(self) -> None:
+        """转正/禁用脚本后热加载：重建 function tools 与主 agent 提示词。"""
+        from my_jarvis.agent.core import build_agents
+        build_agents.cache_clear()
+        self._script_tools = build_script_tools(load_scripts())
+
     async def handle(self, msg: InboundMessage) -> None:
         session_id = self.store.get_or_create_session(msg.session_id, msg.entrance)
         ctx = ToolContext(

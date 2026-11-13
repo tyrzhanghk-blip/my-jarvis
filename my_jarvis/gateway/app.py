@@ -4,8 +4,10 @@ import os
 import secrets
 from pathlib import Path
 
-# 中转网关不支持 OpenAI tracing，关闭以消除 401 噪音
-os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
+# tracing 降级：仅官方 OpenAI 端点启用 tracing，中转网关自动关闭（消除 401 噪音）
+_base_url = os.environ.get("OPENAI_BASE_URL", "")
+if _base_url and "api.openai.com" not in _base_url:
+    os.environ["OPENAI_AGENTS_DISABLE_TRACING"] = "1"
 
 import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
@@ -166,10 +168,15 @@ async def candidates(status: str | None = None, _: None = Depends(auth)) -> list
 
 @app.post("/api/candidates/{cid}/promote")
 async def promote_candidate(cid: str, _: None = Depends(auth)) -> dict:
-    row = store.promote_candidate(cid)
-    if not row:
+    """候选模板转正：写入用户脚本目录 + 热加载注册。"""
+    from my_jarvis.scripts.registry import promote_candidate as do_promote
+    try:
+        s = do_promote(store, cid)
+    except KeyError:
         raise HTTPException(404, "candidate not found")
-    return {"ok": True, "candidate": row}
+    router.reload_scripts()
+    return {"ok": True, "script_id": s.id, "description": s.description,
+            "status": s.manifest.get("status")}
 
 
 # ── 审计 ──
@@ -212,7 +219,8 @@ app.mount("/web", StaticFiles(directory=str(webui_dir), html=True), name="webui"
 def main() -> None:  # python -m my_jarvis.gateway.app
     import uvicorn
     server = CFG.get("server", {})
-    uvicorn.run(app, host=server.get("host", "127.0.0.1"), port=int(server.get("port", 8787)))
+    port = int(os.environ.get("JARVIS_PORT", server.get("port", 8787)))
+    uvicorn.run(app, host=server.get("host", "127.0.0.1"), port=port)
 
 
 if __name__ == "__main__":
