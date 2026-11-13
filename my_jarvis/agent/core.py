@@ -54,6 +54,16 @@ def build_agents() -> tuple[Agent, dict[str, Agent]]:
     models = _resolve_models()
     strong = models.get("strong", "gpt-4.1")
 
+    # 注入已注册 active 脚本清单（脚本命中优先的前提）
+    from my_jarvis.scripts import load_scripts
+    active = [s for s in load_scripts() if s.is_active()]
+    if active:
+        listing = "\n".join(
+            f"- {s.id}: {s.description}（参数: {', '.join(s.params) or '无'}）" for s in active)
+        script_section = f"\n[已注册固化脚本清单——命中即优先调用 run_script]\n{listing}"
+    else:
+        script_section = "\n[当前无已注册固化脚本]"
+
     shell_agent = Agent(
         name="shell-agent", instructions=SHELL_PROMPT,
         tools=[run_command, make_candidate], model=strong)
@@ -66,7 +76,7 @@ def build_agents() -> tuple[Agent, dict[str, Agent]]:
 
     main = Agent(
         name="jarvis-core",
-        instructions=IDENTITY + "\n" + memory_prompt(),
+        instructions=IDENTITY + script_section + "\n" + memory_prompt(),
         tools=[save_memory],
         handoffs=[shell_agent, browser_agent, ui_agent],
         model=strong)

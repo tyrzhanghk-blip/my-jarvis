@@ -4,6 +4,9 @@ import os
 import secrets
 from pathlib import Path
 
+# 中转网关不支持 OpenAI tracing，关闭以消除 401 噪音
+os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
+
 import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
